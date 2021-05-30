@@ -1,5 +1,6 @@
 package de.pxav.kelp.implementation1_8.command;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import de.dseelp.kommon.command.CommandDispatcher;
@@ -10,6 +11,7 @@ import de.pxav.kelp.core.command.version.CommandRegistryVersionTemplate;
 import de.pxav.kelp.core.player.KelpPlayer;
 import de.pxav.kelp.core.player.KelpPlayerRepository;
 import de.pxav.kelp.core.version.Versioned;
+import kotlin.Pair;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandMap;
@@ -19,11 +21,13 @@ import org.bukkit.command.defaults.BukkitCommand;
 import org.bukkit.craftbukkit.v1_8_R3.CraftServer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -108,12 +112,29 @@ public class VersionedCommandRegistry extends CommandRegistryVersionTemplate {
   public void registerCommand(DeclarativeKelpCommand<? extends KelpCommandSender<?>> command, CreateDeclarativeCommand commandAnnotation) {
     final String commandName = command.getCommandNode().getName();
     addToDispatcher(command.getCommandNode());
-    //CommandDispatcherUtil.addToDispatcher(commandDispatcher, command.getCommandNode());
     Command bukkitCommand = new BukkitCommand(commandName) {
       @Override
       public boolean execute(CommandSender sender, String label, String[] args) {
-        final ParsedResult<? extends KelpCommandSender<?>> parsed = commandDispatcher.parse(label);
-        if (parsed == null) sender.sendMessage("Failed to parse command. Please contact an admin.");
+        String joinedArguments = String.join(" ", args);
+        final ParsedResult<? extends KelpCommandSender<?>> parsed = commandDispatcher.parse(label + " " + joinedArguments);
+        if (parsed == null) {
+          sender.sendMessage("Failed to parse command. Please contact an admin.");
+          return true;
+        }
+        Pair<KelpCommandSender, Boolean> senderPair = getKelpCommandSender(sender);
+        if (senderPair == null) {
+          return true;
+        }
+        try {
+          parsed.getClass().getDeclaredMethod("execute", Object.class, boolean.class).invoke(parsed, senderPair.component1(), senderPair.component2());
+        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+          e.printStackTrace();
+        }
+        return true;
+      }
+
+      @Nullable
+      public Pair<KelpCommandSender, Boolean> getKelpCommandSender(CommandSender sender) {
         ExecutorType executorType = commandAnnotation.executorType();
         KelpCommandSender<?> kelpSender;
         boolean isConsoleSender = false;
@@ -124,14 +145,25 @@ public class VersionedCommandRegistry extends CommandRegistryVersionTemplate {
           isConsoleSender = true;
         }else {
           sender.sendMessage("Command executed with unknown CommandSender.");
-          return true;
+          return null;
         }
+        return new Pair<>(kelpSender, isConsoleSender);
+      }
+
+      @Override
+      public List<String> tabComplete(CommandSender sender, String alias, String[] args) throws IllegalArgumentException {
+        Pair<KelpCommandSender, Boolean> senderPair = getKelpCommandSender(sender);
+        if (senderPair == null || args.length == 0) {
+          return ImmutableList.of();
+        }
+
+        String joinedArguments = String.join(" ", args);
         try {
-          parsed.getClass().getDeclaredMethod("execute", Object.class, boolean.class).invoke(parsed, kelpSender, isConsoleSender);
+          return ImmutableList.copyOf((String[]) commandDispatcher.getClass().getDeclaredMethod("complete", Object.class, String.class).invoke(commandDispatcher, senderPair.component1(), alias + " " + joinedArguments));
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
           e.printStackTrace();
+          return ImmutableList.of();
         }
-        return true;
       }
     }.setAliases(Collections.singletonList(commandName));
     registerInCommandMap(commandName, bukkitCommand);

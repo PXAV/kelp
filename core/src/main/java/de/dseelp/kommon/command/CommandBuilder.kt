@@ -66,10 +66,6 @@ class CommandBuilder<S: Any>(
         childs += CommandBuilder<S>(argument = argument).apply(block).build()
     }
 
-    /*fun argument(argument: Argument<*>) {
-        arguments+=argument
-    }*/
-
     fun build(): CommandNode<S> {
         if (name == null && argument == null) throw IllegalStateException("An command node must have a name or an argument!")
         if (target != null && childs.isNotEmpty()) throw IllegalStateException("Cannot forward a node with children")
@@ -81,7 +77,7 @@ class CommandBuilder<S: Any>(
         this.apply(block)
     }
 
-    fun <I: Any, O: Any?> map(name: String, mapper: CommandContext<S>.(input: I) -> O) {
+    fun <I : Any, O : Any?> map(name: String, mapper: CommandContext<S>.(input: I) -> O) {
         @Suppress("UNCHECKED_CAST")
         mappers = mappers + (name to mapper as CommandContext<S>.(input: Any) -> Any?)
     }
@@ -90,4 +86,14 @@ class CommandBuilder<S: Any>(
         private set
 }
 
-fun <T: Any> command(name: String, block: CommandBuilder<T>.() -> Unit): CommandNode<T> = CommandBuilder<T>(name).apply(block).build()
+@Deprecated(
+    message = "This deprecated in favor of literal and will be removed in the future",
+    replaceWith = ReplaceWith("literal(name, block)")
+)
+fun <S : Any> command(name: String, block: CommandBuilder<S>.() -> Unit): CommandNode<S> = literal(name, block)
+
+fun <S : Any> literal(name: String, block: CommandBuilder<S>.() -> Unit): CommandNode<S> =
+    CommandBuilder<S>(name).apply(block).build()
+
+fun <T : Any> argument(argument: Argument<T, *>, block: CommandBuilder<T>.() -> Unit): CommandNode<T> =
+    CommandBuilder<T>(argument = argument).apply(block).build()

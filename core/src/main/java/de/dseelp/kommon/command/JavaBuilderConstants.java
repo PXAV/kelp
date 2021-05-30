@@ -1,6 +1,9 @@
 package de.dseelp.kommon.command;
 
 import de.dseelp.kommon.command.arguments.*;
+import kotlin.jvm.functions.Function1;
+
+import java.util.UUID;
 
 /**
  * @author DSeeLP
@@ -32,13 +35,41 @@ public class JavaBuilderConstants {
         return new IntArgument(name);
     }
 
+    public static IntArgument integerArgument(String name, Function1<CommandContext, Integer[]> completer) {
+        return new IntArgument(name, completer);
+    }
+
+    public static DoubleArgument doubleArgument(String name) {
+        return new DoubleArgument(name);
+    }
+
+    public static DoubleArgument doubleArgument(String name, Function1<CommandContext, Double[]> completer) {
+        return new DoubleArgument(name, completer);
+    }
+
+    public static LongArgument longArgument(String name) {
+        return new LongArgument(name);
+    }
+
+    public static LongArgument longArgument(String name, Function1<CommandContext, Long[]> completer) {
+        return new LongArgument(name, completer);
+    }
+
 
     public static UUIDArgument uniqueIdArgument(String name) {
         return new UUIDArgument(name);
     }
 
+    public static UUIDArgument uniqueIdArgument(String name, Function1<CommandContext, UUID[]> completer) {
+        return new UUIDArgument(name, completer);
+    }
+
 
     public static StringArgument stringArgument(String name) {
         return new StringArgument(name);
+    }
+
+    public static StringArgument stringArgument(String name, Function1<CommandContext, String[]> completer) {
+        return new StringArgument(name, completer);
     }
 }
